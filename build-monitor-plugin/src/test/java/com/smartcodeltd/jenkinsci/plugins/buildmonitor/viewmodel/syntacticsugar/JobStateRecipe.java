@@ -1,10 +1,13 @@
 package com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar;
 
 import com.google.common.base.Supplier;
+import com.infradna.tool.bridge_method_injector.WithBridgeMethods;
+
 import hudson.model.AbstractBuild;
 import hudson.model.ItemGroup;
 import hudson.model.Job;
 import hudson.model.ViewJob;
+import jenkins.model.Jenkins;
 
 import java.util.Stack;
 
@@ -38,7 +41,7 @@ public class JobStateRecipe implements Supplier<Job<?,?>> {
 
         // This might not necessarily belong here,
         // but I don't need to introduce the concept of a parent anywhere else yet.
-        ItemGroup parent = mock(ItemGroup.class);
+        Jenkins parent = mock(Jenkins.class);
         when(parent.getUrl()).thenReturn("job/");
         when(job.getParent()).thenReturn(parent);
 

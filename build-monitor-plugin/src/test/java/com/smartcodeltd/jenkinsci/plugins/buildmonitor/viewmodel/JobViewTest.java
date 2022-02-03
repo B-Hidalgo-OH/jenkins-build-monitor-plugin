@@ -1,19 +1,32 @@
 package com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel;
 
-import com.smartcodeltd.jenkinsci.plugins.buildmonitor.facade.RelativeLocation;
-import org.junit.Test;
-
-import java.util.List;
-
 import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Loops.asFollows;
-import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Sugar.*;
+import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Sugar.a;
+import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Sugar.build;
+import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Sugar.job;
+import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.Sugar.jobView;
 import static com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar.TimeMachine.currentTime;
-import static hudson.model.Result.*;
+import static hudson.model.Result.ABORTED;
+import static hudson.model.Result.FAILURE;
+import static hudson.model.Result.SUCCESS;
+import static hudson.model.Result.UNSTABLE;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.Test;
+
+import com.smartcodeltd.jenkinsci.plugins.buildmonitor.facade.RelativeLocation;
+
+import hudson.model.Result;
 
 /**
  * @author Jan Molak
@@ -232,6 +245,142 @@ public class JobViewTest {
     }
 
     /*
+     * OhioHealth custom grading tests
+     */
+
+    @Test
+    public void should_describe_the_job_as_passed_with_an_a_when_it_has_passed_with_a_100_percent_pass_rate() {
+    	testBuildsWithTestsPassedAndFailed(SUCCESS, "100", "100", "grade-a");
+    }
+
+    @Test
+    public void should_describe_the_job_as_passed_with_a_b_when_it_has_passed_with_a_90_to_99_percent_pass_rate() {
+    	testBuildsWithTestsPassedAndFailed(SUCCESS, "99", "90", "grade-b");
+    }
+
+    @Test
+    public void should_describe_the_job_as_passed_with_a_c_when_it_has_passed_with_a_65_to_89_percent_pass_rate() {
+    	testBuildsWithTestsPassedAndFailed(SUCCESS, "89", "65", "grade-c");
+    }
+
+    @Test
+    public void should_describe_the_job_as_passed_with_a_d_when_it_has_passed_with_a_0_to_64_percent_pass_rate() {
+    	testBuildsWithTestsPassedAndFailed(SUCCESS, "64", "0", "grade-d");
+    }
+
+    @Test
+    public void should_describe_an_aborted_job_as_aborted_when_tests_passed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(ABORTED, "not an int", "0")))));
+    	
+    	assertThat(view.status(), containsString("aborted"));
+    }
+
+    @Test
+    public void should_describe_a_successful_job_as_successful_when_tests_passed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(SUCCESS, "not an int", "0")))));
+    	
+    	assertThat(view.status(), containsString("success"));
+    }
+
+    @Test
+    public void should_describe_a_failing_job_as_failing_when_tests_passed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(FAILURE, "not an int", "0")))));
+    	
+    	assertThat(view.status(), containsString("failing"));
+    }
+
+    @Test
+    public void should_describe_an_unstable_job_as_unstable_when_tests_passed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(UNSTABLE, "not an int", "0")))));
+    	
+    	assertThat(view.status(), containsString("unstable"));
+    }
+
+    @Test
+    public void should_describe_an_aborted_job_as_aborted_when_tests_failed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(ABORTED, "0", "not an int")))));
+    	
+    	assertThat(view.status(), containsString("aborted"));
+    }
+
+    @Test
+    public void should_describe_a_successful_job_as_successful_when_tests_failed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(SUCCESS, "0", "not an int")))));
+    	
+    	assertThat(view.status(), containsString("success"));
+    }
+
+    @Test
+    public void should_describe_a_failing_job_as_failing_when_tests_failed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(FAILURE, "0", "not an int")))));
+    	
+    	assertThat(view.status(), containsString("failing"));
+    }
+
+    @Test
+    public void should_describe_an_unstable_job_as_unstable_when_tests_failed_cannot_be_parsed_into_an_integer() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(UNSTABLE, "0", "not an int")))));
+    	
+    	assertThat(view.status(), containsString("unstable"));
+    }
+
+    @Test
+    public void should_describe_an_aborted_job_when_total_tests_are_equal_to_zero() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(ABORTED, "0", "0")))));
+    	
+    	assertThat(view.status(), containsString("aborted"));
+    }
+
+    @Test
+    public void should_describe_a_successful_job_when_total_tests_are_equal_to_zero() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(SUCCESS, "0", "0")))));
+    	
+    	assertThat(view.status(), containsString("success"));
+    }
+
+    @Test
+    public void should_describe_a_failing_job_when_total_tests_are_equal_to_zero() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(FAILURE, "0", "0")))));
+    	
+    	assertThat(view.status(), containsString("failing"));
+    }
+
+    @Test
+    public void should_describe_an_unstable_job_when_total_tests_are_equal_to_zero() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(UNSTABLE, "0", "0")))));
+    	
+    	assertThat(view.status(), containsString("unstable"));
+    }
+
+    @Test
+    public void should_describe_an_aborted_job_when_tests_passed_is_not_specified() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(ABORTED, null, null)))));
+    	
+    	assertThat(view.status(), containsString("aborted"));
+    }
+
+    @Test
+    public void should_describe_an_successful_job_when_tests_passed_is_not_specified() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(SUCCESS, null, null)))));
+    	
+    	assertThat(view.status(), containsString("success"));
+    }
+
+    @Test
+    public void should_describe_an_failing_job_when_tests_passed_is_not_specified() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(FAILURE, null, null)))));
+    	
+    	assertThat(view.status(), containsString("failing"));
+    }
+
+    @Test
+    public void should_describe_an_unstable_job_when_tests_passed_is_not_specified() {
+    	view = a(jobView().of(a(job().whereTheLast(build().finishedWith(UNSTABLE, null, null)))));
+    	
+    	assertThat(view.status(), containsString("unstable"));
+    }
+
+    /*
      * Parallel build execution handling
      */
 
@@ -263,5 +412,28 @@ public class JobViewTest {
         assertThat(view.estimatedDuration(), is(""));
         assertThat(view.progress(), is(0));
         assertThat(view.status(), is("unknown"));
+    }
+    
+    // TODO recipes?
+    private void testBuildsWithTestsPassedAndFailed(Result result, String upperBound, String lowerBound, String expectedGrade) {
+    	int upperBoundParsed = Integer.parseInt(upperBound);
+    	int lowerBoundParsed = Integer.parseInt(lowerBound);
+    	
+    	ArrayList<JobView> jobViews = new ArrayList<JobView>();
+    	
+    	String testsPassed;
+    	String testsFailed;
+    	
+    	for(int i = upperBoundParsed; i >= lowerBoundParsed; i--) {
+    		testsPassed = String.valueOf(i);
+    		testsFailed = String.valueOf(100 - i);
+    		
+    		jobViews.add(a(jobView().of(a(job().whereTheLast(build().finishedWith(result, testsPassed, testsFailed))))));
+    	}
+    	
+    	for(int i = upperBoundParsed; i >= lowerBoundParsed; i--) {
+    		JobView jobView = jobViews.get(upperBoundParsed - i);
+        	assertThat(String.format("A pass rate of %d should describe %s", i, expectedGrade), jobView.status(), containsString(expectedGrade));
+    	}
     }
 }

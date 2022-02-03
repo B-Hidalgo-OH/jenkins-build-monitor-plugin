@@ -112,11 +112,10 @@ h2 {
 .build-monitor .successful { background-color:darkgreen; }
 .build-monitor .unstable   { background-color:#f59400; }
 .build-monitor .failing    { background-color:darkred; }
-.build-monitor .grade-f    { background-color:#F44336; }
-.build-monitor .grade-d    { background-color:#FF9800; }
-.build-monitor .grade-c    { background-color:#FFEB3B; }
-.build-monitor .grade-b    { background-color:#8BC34A; }
-.build-monitor .grade-a    { background-color:#4CAF50; }
+.build-monitor .grade-d    { background-color:#F43434; }
+.build-monitor .grade-c    { background-color:#F4F434; }
+.build-monitor .grade-b    { background-color:#4DFF88; }
+.build-monitor .grade-a    { background-color:#009933; }
 /* same grey background because in each case there's no visibility of what's wrong with the build */
 .build-monitor .aborted,
 .build-monitor .disabled   { background-color:grey; }

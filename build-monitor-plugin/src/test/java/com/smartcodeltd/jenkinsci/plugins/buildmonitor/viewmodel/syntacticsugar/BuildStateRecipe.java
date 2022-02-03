@@ -1,9 +1,28 @@
 package com.smartcodeltd.jenkinsci.plugins.buildmonitor.viewmodel.syntacticsugar;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
+import org.jvnet.hudson.plugins.groovypostbuild.GroovyPostbuildAction;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.smartcodeltd.jenkinsci.plugins.buildmonitor.extensions.RunWrapperFactory;
 import com.sonyericsson.jenkins.plugins.bfa.model.FailureCauseBuildAction;
 import com.sonyericsson.jenkins.plugins.bfa.model.FoundFailureCause;
+
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Result;
@@ -13,32 +32,31 @@ import hudson.scm.ChangeLogSet;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.InterruptedBuildAction;
 
-import org.jvnet.hudson.plugins.groovypostbuild.GroovyPostbuildAction;
-import org.powermock.api.mockito.PowerMockito;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
 /**
  * @author Jan Molak
  */
 public class BuildStateRecipe implements Supplier<AbstractBuild<?, ?>> {
 
     private AbstractBuild<?, ?> build;
+    private Map<String, String> buildEnvVars;
+    private RunWrapperFactory runWrapperFactory;
+    private RunWrapper runWrapper;
 
-    public BuildStateRecipe() {
+    public BuildStateRecipe() {        
         build = mock(AbstractBuild.class);
-
         AbstractProject parent = mock(AbstractProject.class);
         doReturn(parent).when(build).getParent();
+        
+        buildEnvVars = mock(Map.class);
+        runWrapper = mock(RunWrapper.class);
+        try {
+        	when(runWrapper.getBuildVariables()).thenReturn(buildEnvVars);
+        } catch (Exception e) {
+        	// TODO ?
+        }
+        runWrapperFactory = mock(RunWrapperFactory.class);
+        when(runWrapperFactory.of(Mockito.any(AbstractBuild.class), Mockito.anyBoolean())).thenReturn(runWrapper);
+        RunWrapperFactory.setInstance(runWrapperFactory);   
     }
 
     public BuildStateRecipe hasNumber(int number) {
@@ -62,6 +80,15 @@ public class BuildStateRecipe implements Supplier<AbstractBuild<?, ?>> {
         when(build.getResult()).thenReturn(result);
 
         return this;
+    }
+    
+    public BuildStateRecipe finishedWith(Result result, final String testsPassed, final String testsFailed) {
+    	finishedWith(result);
+    	
+    	when(buildEnvVars.get("TESTS_PASSED")).thenReturn(testsPassed);
+    	when(buildEnvVars.get("TESTS_FAILED")).thenReturn(testsFailed);
+    	
+    	return this;
     }
 
     public BuildStateRecipe withChangesFrom(String... authors) {

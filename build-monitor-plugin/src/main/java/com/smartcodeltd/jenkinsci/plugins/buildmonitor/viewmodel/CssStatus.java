@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.smartcodeltd.jenkinsci.plugins.buildmonitor.BuildMonitorLogger;
+import com.smartcodeltd.jenkinsci.plugins.buildmonitor.extensions.RunWrapperFactory;
+
 import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
 
 import static hudson.model.Result.*;
@@ -28,8 +30,7 @@ public class CssStatus {
 	private static final String B = "B";
 	private static final String C = "C";
 	private static final String D = "D";
-	private static final String F = "F";
-	    
+
     private static final Map<Result, String> statuses = new HashMap<Result, String>() {{
         put(SUCCESS,   "successful");
         put(UNSTABLE,  "unstable");
@@ -43,7 +44,6 @@ public class CssStatus {
         put(B, "grade-b");
         put(C, "grade-c");
         put(D, "grade-d");
-        put(F, "grade-f");
     }};
 
     public static String of(final JobView job) {
@@ -52,12 +52,12 @@ public class CssStatus {
         String testsFailed = null;
         Job<?, ?> lastJob = job.getJob();
         Run<?, ?> lastBuild = lastJob != null ? lastJob.getLastBuild() : null;
-        RunWrapper lastBuildWrapper = lastBuild != null ? new RunWrapper(lastBuild, false) : null;
+        RunWrapper lastBuildWrapper = lastBuild != null ? RunWrapperFactory.getInstance().of(lastBuild, false) : null;
         Map<String, String> lastBuildEnvVars;
         
 		try {
 			lastBuildEnvVars = lastBuildWrapper != null ? lastBuildWrapper.getBuildVariables() : null;
-		} catch (AbortException e) {
+		} catch (Exception e) {
 			lastBuildEnvVars = null;
 		}
 		
@@ -86,31 +86,34 @@ public class CssStatus {
     
     private static String statusOf(Result result, String testsPassed, String testsFailed) {
         String status;
-        int testsPassedParsed;
-        int testsFailedParsed;
+        int testsPassedParsed = 0;
+        int testsFailedParsed = 0;
+        int totalTests = 0;
         double grade;
+        Exception exception = null;
 
         try {
             testsPassedParsed = Integer.parseInt(testsPassed);
             testsFailedParsed = Integer.parseInt(testsFailed);
-        } catch (NumberFormatException e) {
-            return statusOf(result);
-        } catch (NullPointerException e) {
-        	return statusOf(result);
+            totalTests = testsPassedParsed + testsFailedParsed;
+        } catch (Exception e) {
+            exception = e;
+        } finally {
+            if(exception != null || totalTests < 1) {
+                return statusOf(result);
+            }
         }
 
-        grade = (Double.valueOf(testsPassedParsed) / Double.valueOf((testsPassedParsed + testsFailedParsed))) * 100;
+        grade = (Double.valueOf(testsPassedParsed) / Double.valueOf(totalTests)) * 100;
         
-        if(grade >= 90) {
+        if(grade >= 100) {
             status = A;
-        } else if(grade >= 80) {
+        } else if(grade >= 90) {
             status = B;
-        } else if(grade >= 70) {
-            status = C;
         } else if(grade >= 65) {
-            status = D;
+            status = C;
         } else {
-            status = F;
+            status = D;
         }
 
         return gradeStatuses.getOrDefault(status, "unknown");
